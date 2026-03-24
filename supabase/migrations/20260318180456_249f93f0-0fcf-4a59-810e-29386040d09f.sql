@@ -1,0 +1,1 @@
+ALTER TABLE public.posts ADD COLUMN session_id uuid NOT NULL DEFAULT gen_random_uuid();

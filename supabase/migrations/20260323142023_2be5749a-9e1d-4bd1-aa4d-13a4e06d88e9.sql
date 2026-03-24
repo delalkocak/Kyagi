@@ -1,0 +1,2 @@
+ALTER TABLE public.post_media DROP CONSTRAINT post_media_media_type_check;
+ALTER TABLE public.post_media ADD CONSTRAINT post_media_media_type_check CHECK (media_type = ANY (ARRAY['photo'::text, 'audio'::text, 'video'::text]));

@@ -1,0 +1,1 @@
+DELETE FROM sunday_papers WHERE week_start = '2026-03-09';

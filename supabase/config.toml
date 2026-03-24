@@ -1,0 +1,46 @@
+project_id = "pmfggiphqcajkynoppkt"
+
+[functions.generate-sunday-paper]
+verify_jwt = false
+
+[functions.invite-to-circle]
+verify_jwt = false
+
+[functions.moderate-comment]
+verify_jwt = false
+
+[functions.redeem-invite]
+verify_jwt = false
+
+[functions.respond-to-request]
+verify_jwt = false
+
+[functions.send-calendar-invite]
+verify_jwt = false
+
+[functions.shuffle-village]
+verify_jwt = false
+
+[functions.suggest-activity]
+verify_jwt = false
+
+[functions.weekly-priority-reminder]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.notify-new-post]
+verify_jwt = false
+
+[functions.notify-schedule-event]
+verify_jwt = false
+
+[functions.hangout-reminder]
+verify_jwt = false
+
+[functions.fetch-link-preview]
+verify_jwt = false
+
+[functions.sync-to-dashboard]
+verify_jwt = false

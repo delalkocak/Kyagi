@@ -1,0 +1,1 @@
+ALTER TABLE public.circle_members ADD COLUMN is_active boolean NOT NULL DEFAULT true;

@@ -83,11 +83,20 @@ html,
 body {
   overscroll-behavior: none;
   overflow: hidden;
-  height: 100dvh;
+  height: 100%;
+  height: -webkit-fill-available;
   background: #fefcf6;
 }
 #root {
+  height: 100%;
+  height: -webkit-fill-available;
+}
+/* PWA shell: cascade so iOS standalone uses -webkit-fill-available,
+   which reaches the physical bottom of the screen (100dvh leaves a gap). */
+.pwa-shell {
+  height: 100vh;
   height: 100dvh;
+  height: -webkit-fill-available;
 }
 @keyframes fadeSlideIn {
   from {
@@ -134,18 +143,11 @@ body {
   animation: pulse-dot 1s ease infinite;
 }
 
-/* PWA standalone: remove safe-area below tab bar */
+/* PWA standalone: icons float above the home indicator;
+   background fills all the way to the physical bottom naturally. */
 @media all and (display-mode: standalone) {
   .tab-bar-container {
-    height: 49px !important;
-    min-height: 49px !important;
-    max-height: 49px !important;
-    flex: 0 0 49px !important;
-    padding: 0 !important;
-    padding-bottom: 0 !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .safe-area-spacer {
     display: none !important;

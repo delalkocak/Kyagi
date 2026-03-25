@@ -322,12 +322,7 @@ const Index = () => {
         style={{
           background: colors.card,
           borderColor: colors.border,
-          height: 49,
           minHeight: 49,
-          maxHeight: 49,
-          boxSizing: "border-box",
-          padding: 0,
-          margin: 0,
           zIndex: 50,
         }}
       >
@@ -354,7 +349,7 @@ const Index = () => {
   if (isNativeShell) {
     return (
       <div
-        className="h-[100dvh] flex flex-col font-sans relative"
+        className="pwa-shell flex flex-col font-sans relative"
         style={{
           background: colors.card,
         }}

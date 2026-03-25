@@ -48,9 +48,9 @@ export function usePushPermission() {
       }
 
       const reg = await navigator.serviceWorker.ready;
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || "BADKTuG_huswp8udz_9EVP-mV3lWi1M18Sd8tcyXKKEwL0kDm9yON__uRxy6gDBFcNxjnj_ae9Dvw_BwgaElXlI";
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        console.error("VAPID public key not configured");
+        console.error("VAPID public key not configured — set VITE_VAPID_PUBLIC_KEY in .env");
         setLoading(false);
         return false;
       }

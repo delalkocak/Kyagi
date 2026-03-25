@@ -142,12 +142,21 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Only allow calls from internal services (cron, webhooks, other edge functions).
-  // All legitimate callers use a service-role Supabase client, which automatically
-  // sends the service-role key as the Authorization Bearer token.
+  // Only allow calls from internal services (other edge functions or DB triggers).
+  // Two valid paths:
+  //   1. Edge function callers: use a service-role Supabase client, which sends
+  //      the service-role key as Authorization Bearer token automatically.
+  //   2. DB trigger callers (pg_net): send x-webhook-secret header, since they
+  //      only have access to app.settings.webhook_secret (not the service-role key).
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+  const webhookSecret = Deno.env.get("WEBHOOK_SECRET") ?? "";
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const providedWebhookSecret = req.headers.get("x-webhook-secret") ?? "";
+
+  const validServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
+  const validWebhook = webhookSecret && providedWebhookSecret === webhookSecret;
+
+  if (!validServiceRole && !validWebhook) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

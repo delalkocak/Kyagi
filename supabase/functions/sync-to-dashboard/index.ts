@@ -11,6 +11,15 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const providedSecret = req.headers.get("x-cron-secret") ?? "";
+  if (!cronSecret || providedSecret !== cronSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -141,10 +150,13 @@ Deno.serve(async (req) => {
       };
     });
 
-    // POST to dashboard
-    const response = await fetch(
-      "https://tjfldrihdjsbqjzhmfpx.supabase.co/functions/v1/receive-sync",
-      {
+    // POST to dashboard — URL stored in env var, not hardcoded
+    const dashboardSyncUrl = Deno.env.get("DASHBOARD_SYNC_URL");
+    if (!dashboardSyncUrl) {
+      throw new Error("DASHBOARD_SYNC_URL not configured");
+    }
+
+    const response = await fetch(dashboardSyncUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

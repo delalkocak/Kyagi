@@ -1,14 +1,35 @@
--- Wire the webhook secret into DB trigger functions so they can authenticate
+-- Wire the WEBHOOK_SECRET into DB trigger functions so they can authenticate
 -- against the now-secured edge functions.
 --
 -- The secret VALUE is NOT stored here (that would expose it in git).
--- Before deploying, run the following in your Supabase SQL editor:
+-- The trigger functions read it from the Supabase Vault at runtime.
 --
---   ALTER DATABASE postgres
---     SET "app.settings.webhook_secret" = '<your_WEBHOOK_SECRET_value>';
+-- Before this migration takes effect, store your WEBHOOK_SECRET in the vault
+-- by running the following once in your Supabase SQL editor:
+--
+--   SELECT vault.create_secret(
+--     'YOUR_WEBHOOK_SECRET_VALUE_HERE',
+--     'webhook_secret'
+--   );
 --
 -- Use the same value you set as the WEBHOOK_SECRET edge function secret
 -- in the Supabase dashboard (Settings → Edge Functions → Secrets).
+-- The vault stores it encrypted; the SECURITY DEFINER functions below
+-- can read it at trigger-fire time via vault.decrypted_secrets.
+
+-- Helper: read the webhook secret from vault (returns NULL if not yet stored)
+CREATE OR REPLACE FUNCTION public._get_webhook_secret()
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT decrypted_secret
+  FROM vault.decrypted_secrets
+  WHERE name = 'webhook_secret'
+  LIMIT 1;
+$$;
 
 -- Update notify_push_on_new_post to include x-webhook-secret header
 CREATE OR REPLACE FUNCTION public.notify_push_on_new_post()
@@ -26,7 +47,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  _secret := current_setting('app.settings.webhook_secret', true);
+  _secret := public._get_webhook_secret();
 
   PERFORM net.http_post(
     url := _url || '/functions/v1/notify-new-post',
@@ -60,7 +81,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  _secret := current_setting('app.settings.webhook_secret', true);
+  _secret := public._get_webhook_secret();
 
   PERFORM net.http_post(
     url := _url || '/functions/v1/notify-schedule-event',
@@ -123,9 +144,9 @@ BEGIN
     NEW.flare_id
   );
 
-  -- Trigger push notification via edge function (using webhook secret for auth)
+  -- Trigger push notification via edge function (using vault webhook secret for auth)
   _url := current_setting('app.settings.supabase_url', true);
-  _secret := current_setting('app.settings.webhook_secret', true);
+  _secret := public._get_webhook_secret();
 
   IF _url IS NOT NULL AND _url != '' THEN
     PERFORM net.http_post(

@@ -7,9 +7,19 @@ const corsHeaders = {
 };
 
 // Called via database webhook on posts INSERT
+// Requires x-webhook-secret header matching WEBHOOK_SECRET env var.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const webhookSecret = Deno.env.get("WEBHOOK_SECRET") ?? "";
+  const providedSecret = req.headers.get("x-webhook-secret") ?? "";
+  if (!webhookSecret || providedSecret !== webhookSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {

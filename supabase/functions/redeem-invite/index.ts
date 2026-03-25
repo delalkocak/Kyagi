@@ -46,40 +46,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Look up the invite code
-    const { data: invite, error: inviteError } = await adminClient
+    // Atomically claim the invite — only succeeds if not yet used and not the inviter's own code.
+    // Using UPDATE ... WHERE used_by IS NULL prevents the TOCTOU race where two concurrent
+    // requests both pass the used_by check and both mark the code as used.
+    const { data: invite, error: claimError } = await adminClient
       .from("invite_codes")
-      .select("*")
+      .update({ used_by: user.id, used_at: new Date().toISOString() })
       .eq("code", code.trim())
+      .is("used_by", null)
+      .neq("inviter_id", user.id)
+      .select()
       .maybeSingle();
 
-    if (inviteError) throw inviteError;
-    if (!invite) {
-      return new Response(JSON.stringify({ error: "Invite code not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (claimError) throw claimError;
 
-    if (invite.used_by) {
+    if (!invite) {
+      // Determine which error to surface
+      const { data: existing } = await adminClient
+        .from("invite_codes")
+        .select("used_by, inviter_id")
+        .eq("code", code.trim())
+        .maybeSingle();
+
+      if (!existing) {
+        return new Response(JSON.stringify({ error: "Invite code not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (existing.inviter_id === user.id) {
+        return new Response(JSON.stringify({ error: "You can't use your own invite link" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: "This invite link has already been used" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    if (invite.inviter_id === user.id) {
-      return new Response(JSON.stringify({ error: "You can't use your own invite link" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Mark the invite code as used
-    await adminClient
-      .from("invite_codes")
-      .update({ used_by: user.id, used_at: new Date().toISOString() })
-      .eq("id", invite.id);
 
     // Create a mutual friend request (auto-accepted)
     // Check for existing connection first

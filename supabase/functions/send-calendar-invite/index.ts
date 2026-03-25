@@ -84,7 +84,11 @@ async function sendCalendarEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Kyagi <onboarding@resend.dev>",
+      // NOTE: Resend requires domain ownership verification before sending from a custom address.
+      // kyagi.invites@outlook.com cannot be used directly (Microsoft owns @outlook.com).
+      // To use this address, add kyagi's sending domain in Resend dashboard and update this to
+      // e.g. "Kyagi <noreply@kyagi.app>" once DNS records are verified.
+      from: "Kyagi <kyagi.invites@outlook.com>",
       to: [toEmail],
       subject,
       html: "<p>Your hangout is confirmed! Open the attached invite to add it to your calendar.</p>",
@@ -141,17 +145,18 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get both users' profiles (including timezone) and emails
-    const { data: profiles } = await adminClient
-      .from("profiles")
-      .select("user_id, display_name, timezone")
-      .in("user_id", [senderId, recipientId]);
+    const [
+      { data: profiles },
+      { data: { user: senderUser } },
+      { data: { user: recipientUser } },
+    ] = await Promise.all([
+      adminClient.from("profiles").select("user_id, display_name, timezone").in("user_id", [senderId, recipientId]),
+      adminClient.auth.admin.getUserById(senderId),
+      adminClient.auth.admin.getUserById(recipientId),
+    ]);
 
-    const { data: users } = await adminClient.auth.admin.listUsers();
-    
     const senderProfile = profiles?.find((p: any) => p.user_id === senderId);
     const recipientProfile = profiles?.find((p: any) => p.user_id === recipientId);
-    const senderUser = users?.users?.find((u: any) => u.id === senderId);
-    const recipientUser = users?.users?.find((u: any) => u.id === recipientId);
 
     if (!senderUser?.email || !recipientUser?.email) {
       return new Response(JSON.stringify({ error: "Could not find user emails" }), {

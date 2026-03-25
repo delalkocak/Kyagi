@@ -44,9 +44,19 @@ function getTomorrowInTimezone(timezone: string): string {
 // Cron: runs every 3 hours, sends 24h reminders for confirmed hangouts happening tomorrow
 // Only sends when it's roughly 9am in the user's timezone (8-10am window)
 // Schedule: 0 */3 * * * (every 3 hours to cover all timezones)
+// Requires x-cron-secret header matching CRON_SECRET env var.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const providedSecret = req.headers.get("x-cron-secret") ?? "";
+  if (!cronSecret || providedSecret !== cronSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {

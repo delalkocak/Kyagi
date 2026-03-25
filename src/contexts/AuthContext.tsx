@@ -23,11 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up listener BEFORE getSession
+    // Set up listener BEFORE getSession.
+    // Do NOT call setLoading(false) here — onAuthStateChange fires with INITIAL_SESSION
+    // before getSession resolves, which causes a flash where loading=false and session=null
+    // (showing the login page briefly for authenticated users).
+    // loading is set to false only once in the getSession().then() below.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        setLoading(false);
 
         // Auto-detect and persist timezone on sign-in
         if ((_event === "SIGNED_IN" || _event === "TOKEN_REFRESHED") && session?.user) {

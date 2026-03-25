@@ -20,8 +20,16 @@ async function getActiveCount(adminClient: any, circleId: string): Promise<numbe
 async function addToCircle(adminClient: any, circleId: string, userId: string): Promise<boolean> {
   const activeCount = await getActiveCount(adminClient, circleId);
   const isActive = activeCount < MAX_ACTIVE;
-  await adminClient.from("circle_members")
+  const { error } = await adminClient.from("circle_members")
     .upsert({ circle_id: circleId, user_id: userId, is_active: isActive }, { onConflict: "circle_id,user_id", ignoreDuplicates: true });
+
+  if (error?.message?.includes("circle_active_limit_exceeded")) {
+    // DB trigger fired (concurrent insert raced past our count) — add as inactive instead
+    await adminClient.from("circle_members")
+      .upsert({ circle_id: circleId, user_id: userId, is_active: false }, { onConflict: "circle_id,user_id", ignoreDuplicates: true });
+    return false;
+  }
+  if (error) throw error;
   return isActive;
 }
 
@@ -106,23 +114,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Find the target user by email
-      let page = 1;
-      const perPage = 50;
-      while (true) {
-        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers({
-          page,
-          perPage,
-        });
-        if (listError) throw listError;
-        
-        const found = users.find((u: any) => u.email === trimmedEmail);
-        if (found) {
-          targetUser = found;
-          break;
-        }
-        if (users.length < perPage) break;
-        page++;
+      // Find the target user by email using O(1) lookup instead of paginated scan
+      const { data: { user: foundUser }, error: getUserError } = await adminClient.auth.admin.getUserByEmail(trimmedEmail);
+      if (!getUserError && foundUser) {
+        targetUser = foundUser;
       }
 
       if (!targetUser) {

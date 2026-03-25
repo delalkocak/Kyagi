@@ -1,1 +1,2 @@
-DELETE FROM auth.users WHERE id = 'aad13865-e20c-4814-8d04-145e19baebc0';
+-- No-op: contained hardcoded production UUID (dev data cleanup) that breaks fresh deployments.
+SELECT 1;

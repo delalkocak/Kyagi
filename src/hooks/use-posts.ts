@@ -11,7 +11,12 @@ export interface DbPost {
   content: string;
   created_at: string;
   session_id: string;
-  profile: { display_name: string; avatar_url: string | null } | null;
+  link_url: string | null;
+  link_title: string | null;
+  link_description: string | null;
+  link_image_url: string | null;
+  link_site_name: string | null;
+  profile: { user_id: string; display_name: string; nickname: string; avatar_url: string | null } | null;
   media: { id: string; url: string; media_type: string; sort_order: number }[];
   comments: {
     id: string;
@@ -20,7 +25,7 @@ export interface DbPost {
     item_index: number;
     created_at: string;
     user_id: string;
-    profile: { display_name: string; avatar_url: string | null } | null;
+    profile: { user_id: string; display_name: string; nickname: string; avatar_url: string | null } | null;
   }[];
 }
 
@@ -51,92 +56,13 @@ export function useFeedPosts() {
     queryKey: ["feed-posts"],
     enabled: !!user,
     queryFn: async () => {
-      // Try posts from the last 4 days first
-      const since = new Date();
-      since.setDate(since.getDate() - 4);
-
-      let { data: posts, error } = await supabase
-        .from("posts")
-        .select("*")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.rpc("get_feed_posts", {
+        p_user_id: user!.id,
+      });
 
       if (error) throw error;
 
-      // Fallback: if no recent posts, show the 6 most recent posts (any age)
-      if (!posts || posts.length === 0) {
-        const { data: fallback, error: fbError } = await supabase
-          .from("posts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(6);
-        if (fbError) throw fbError;
-        posts = fallback || [];
-      }
-
-      if (posts.length === 0) return [];
-
-      // Filter out posts from paused friends
-      const { data: myCircle } = await supabase
-        .from("circles")
-        .select("id")
-        .eq("owner_id", user!.id)
-        .maybeSingle();
-
-      let pausedUserIds: string[] = [];
-      if (myCircle) {
-        const { data: pausedMembers } = await supabase
-          .from("circle_members")
-          .select("user_id")
-          .eq("circle_id", myCircle.id)
-          .eq("paused", true);
-        pausedUserIds = (pausedMembers || []).map(m => m.user_id);
-      }
-
-      if (pausedUserIds.length > 0) {
-        posts = posts.filter(p => !pausedUserIds.includes(p.user_id));
-      }
-
-      if (posts.length === 0) return [];
-
-      const userIds = [...new Set(posts.map(p => p.user_id))];
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, display_name, avatar_url")
-        .in("user_id", userIds);
-
-      const postIds = posts.map(p => p.id);
-      const { data: media } = await supabase
-        .from("post_media")
-        .select("*")
-        .in("post_id", postIds)
-        .order("sort_order", { ascending: true });
-
-      const { data: comments } = await supabase
-        .from("comments")
-        .select("*")
-        .in("post_id", postIds)
-        .order("created_at", { ascending: true });
-
-      const commentUserIds = comments ? [...new Set(comments.map(c => c.user_id))] : [];
-      const { data: commentProfiles } = commentUserIds.length > 0
-        ? await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", commentUserIds)
-        : { data: [] };
-
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
-      const commentProfileMap = new Map((commentProfiles || []).map(p => [p.user_id, p]));
-
-      return posts.map(post => ({
-        ...post,
-        profile: profileMap.get(post.user_id) || null,
-        media: (media || []).filter(m => m.post_id === post.id),
-        comments: (comments || []).filter(c => c.post_id === post.id).map(c => ({
-          ...c,
-          profile: commentProfileMap.get(c.user_id) || null,
-        })),
-      })) as DbPost[];
+      return (data as DbPost[]) || [];
     },
   });
 }

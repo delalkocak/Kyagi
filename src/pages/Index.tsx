@@ -130,7 +130,6 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     if (screen !== "profile") {
       setViewFriendId(null);
       setProfileInitialTab(undefined);
@@ -243,7 +242,7 @@ const Index = () => {
         className="flex-1 overflow-y-auto px-4 relative z-10"
         style={{ WebkitOverflowScrolling: "touch", background: colors.bg }}
       >
-        {isFeed && (
+        <div style={{ display: isFeed ? "contents" : "none" }}>
           <FeedScreen
             dbPosts={dbPosts || []}
             isLoading={postsLoading}
@@ -265,9 +264,9 @@ const Index = () => {
               setShowContactMatch(true);
             }}
           />
-        )}
+        </div>
         {screen === "compose" && <ComposeScreen onPosted={() => setScreen("feed")} />}
-        {screen === "schedule" && (
+        <div style={{ display: screen === "schedule" ? "contents" : "none" }}>
           <ScheduleScreen
             highlightRequestId={
               navContext?.type === "schedule_request" || navContext?.type === "schedule_accepted" || navContext?.type === "schedule_declined"
@@ -276,8 +275,8 @@ const Index = () => {
             }
             onHighlightDone={() => setNavContext(null)}
           />
-        )}
-        {screen === "profile" && (
+        </div>
+        <div style={{ display: screen === "profile" ? "contents" : "none" }}>
           <ProfileScreen
             editingFromSettings={showSettings}
             onSettingsDone={() => setShowSettings(false)}
@@ -286,7 +285,7 @@ const Index = () => {
             initialTab={profileInitialTab}
             onOpenContactMatch={() => setShowContactMatch(true)}
           />
-        )}
+        </div>
       </div>
 
       {/* Flare FAB — visible on feed and schedule tabs */}

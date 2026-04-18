@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MentionText } from "./MentionText";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFriendArchive } from "@/hooks/use-archive";
 import { toast } from "sonner";
 
 const AVATAR_COLORS = ["#8B1A2B", "#2B5BA8", "#1A7A6D", "#C48A1A", "#1E4D8C", "#A5212A", "#3A6DB5"];
@@ -126,36 +127,6 @@ function useToggleInterest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["priority-interests"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    },
-  });
-}
-
-function useFriendArchive(userId: string) {
-  return useQuery({
-    queryKey: ["friend-archive", userId],
-    enabled: !!userId,
-    queryFn: async () => {
-      const { data: posts, error } = await supabase
-        .from("posts")
-        .select("id, prompt_type, content, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (!posts || posts.length === 0) return { posts: [], totalCount: 0 };
-
-      const postIds = posts.map(p => p.id);
-      const { data: media } = await supabase
-        .from("post_media")
-        .select("post_id, url, media_type")
-        .in("post_id", postIds);
-
-      const enriched = posts.map(p => ({
-        ...p,
-        media: (media || []).filter(m => m.post_id === p.id),
-      }));
-
-      return { posts: enriched, totalCount: posts.length };
     },
   });
 }

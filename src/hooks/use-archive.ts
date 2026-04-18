@@ -97,3 +97,33 @@ export function useArchivePostsByMonth(monthKey: string | null) {
     },
   });
 }
+
+export function useFriendArchive(userId: string) {
+  return useQuery({
+    queryKey: ["friend-archive", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select("id, prompt_type, content, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!posts || posts.length === 0) return { posts: [], totalCount: 0 };
+
+      const postIds = posts.map(p => p.id);
+      const { data: media } = await supabase
+        .from("post_media")
+        .select("post_id, url, media_type")
+        .in("post_id", postIds);
+
+      const enriched = posts.map(p => ({
+        ...p,
+        media: (media || []).filter(m => m.post_id === p.id),
+      }));
+
+      return { posts: enriched, totalCount: posts.length };
+    },
+  });
+}

@@ -1,12 +1,10 @@
 import React, { useState } from "react";
-import { colors, PROMPTS } from "./data";
-import { promptIcons } from "./icons";
-import { PhotoMedia, AudioMedia } from "./MediaBlock";
+import { colors } from "./data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { MentionText } from "./MentionText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFriendArchive } from "@/hooks/use-archive";
+import { ArchivePostCard } from "./ArchivePostCard";
 import { toast } from "sonner";
 
 const AVATAR_COLORS = ["#8B1A2B", "#2B5BA8", "#1A7A6D", "#C48A1A", "#1E4D8C", "#A5212A", "#3A6DB5"];
@@ -303,28 +301,11 @@ export function FriendProfileView({ userId, onBack }: FriendProfileViewProps) {
           <div key={group.day} className="rounded-xl p-3.5 mb-2 border animate-fade-slide-in"
                style={{ background: colors.card, borderColor: colors.border, animationDelay: `${i * 0.08}s` }}>
             <div className="font-sans text-[11px] font-semibold mb-2" style={{ color: colors.accent }}>{group.day}</div>
-            {group.posts.map((post, j) => {
-              const prompt = PROMPTS.find(p => p.id === post.prompt_type) || PROMPTS[0];
-              return (
-                <div key={post.id} className={j > 0 ? "pt-2 mt-2 border-t" : ""} style={{ borderColor: colors.border }}>
-                  <div className="inline-flex items-center gap-1 rounded-2xl py-0.5 pl-1.5 pr-2 mb-1"
-                       style={{ background: `${prompt.color}12` }}>
-                    {promptIcons[prompt.icon](prompt.color)}
-                    <span className="font-sans text-[9px] font-semibold" style={{ color: prompt.color }}>{prompt.label}</span>
-                  </div>
-                  <p className="font-serif text-[13px] leading-relaxed m-0" style={{ color: colors.text }}>
-                    <MentionText text={post.content} />
-                  </p>
-                  {post.media.map((m, k) =>
-                    m.media_type === "audio" ? (
-                      <AudioMedia key={k} url={m.url} />
-                    ) : (
-                      <PhotoMedia key={k} url={m.url} />
-                    )
-                  )}
-                </div>
-              );
-            })}
+            {group.posts.map((post, j) => (
+              <div key={post.id} className={j > 0 ? "pt-2 mt-2 border-t" : ""} style={{ borderColor: colors.border }}>
+                <ArchivePostCard post={post} />
+              </div>
+            ))}
           </div>
         ))}
       </div>

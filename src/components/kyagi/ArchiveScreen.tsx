@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { colors, PROMPTS } from "./data";
-import { promptIcons } from "./icons";
-import { PhotoMedia } from "./MediaBlock";
+import { colors } from "./data";
 import { useArchiveMonths, useArchivePostsByMonth } from "@/hooks/use-archive";
+import { ArchivePostCard } from "./ArchivePostCard";
 
 function formatDay(dateStr: string) {
   const d = new Date(dateStr);
@@ -185,22 +184,11 @@ export function ArchiveScreen() {
             <div key={group.day} className="rounded-xl p-4 mb-2.5 border animate-fade-slide-in"
                  style={{ background: colors.card, borderColor: colors.border, animationDelay: `${i * 0.08}s` }}>
               <div className="font-sans text-[11px] font-semibold mb-2.5" style={{ color: colors.accent }}>{group.day}</div>
-              {group.posts!.map((post, j) => {
-                const prompt = PROMPTS.find(p => p.id === post.prompt_type) || PROMPTS[0];
-                return (
-                  <div key={post.id} className={j > 0 ? "pt-2.5 mt-2.5 border-t" : ""} style={{ borderColor: colors.border }}>
-                    <div className="inline-flex items-center gap-1 rounded-2xl py-0.5 pl-1.5 pr-2 mb-1"
-                         style={{ background: `${prompt.color}12` }}>
-                      {promptIcons[prompt.icon](prompt.color)}
-                      <span className="font-sans text-[9px] font-semibold" style={{ color: prompt.color }}>{prompt.label}</span>
-                    </div>
-                    <p className="font-serif text-[13px] leading-relaxed m-0" style={{ color: colors.text }}>{post.content}</p>
-                    {post.media.map((m, k) => (
-                      <PhotoMedia key={k} url={m.url} />
-                    ))}
-                  </div>
-                );
-              })}
+              {group.posts!.map((post, j) => (
+                <div key={post.id} className={j > 0 ? "pt-2.5 mt-2.5 border-t" : ""} style={{ borderColor: colors.border }}>
+                  <ArchivePostCard post={post} />
+                </div>
+              ))}
             </div>
           ))}
         </div>

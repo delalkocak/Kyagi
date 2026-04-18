@@ -264,6 +264,8 @@ export function useAddComment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-archive"] });
     },
   });
 }
@@ -290,6 +292,8 @@ export function useEditComment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-archive"] });
     },
   });
 }
@@ -313,6 +317,8 @@ export function useDeleteComment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-archive"] });
     },
   });
 }

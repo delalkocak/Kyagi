@@ -8,12 +8,77 @@ export interface ArchiveMonth {
   count: number;
 }
 
+export interface ArchiveCommentProfile {
+  user_id: string;
+  display_name: string;
+  nickname: string | null;
+  avatar_url: string | null;
+}
+
+export interface ArchiveComment {
+  id: string;
+  text: string;
+  item_index: number;
+  created_at: string;
+  user_id: string;
+  profile: ArchiveCommentProfile | null;
+}
+
 export interface ArchivePost {
   id: string;
   prompt_type: string;
   content: string;
   created_at: string;
   media: { url: string; media_type: string }[];
+  comments: ArchiveComment[];
+}
+
+async function fetchCommentsForPosts(postIds: string[]): Promise<Map<string, ArchiveComment[]>> {
+  const byPost = new Map<string, ArchiveComment[]>();
+  if (postIds.length === 0) return byPost;
+
+  const { data: commentRows, error: commentsError } = await supabase
+    .from("comments")
+    .select("id, post_id, text, item_index, created_at, user_id")
+    .in("post_id", postIds)
+    .order("created_at", { ascending: true });
+
+  if (commentsError) throw commentsError;
+  if (!commentRows || commentRows.length === 0) return byPost;
+
+  const commenterIds = Array.from(new Set(commentRows.map(c => c.user_id)));
+  const { data: profileRows, error: profilesError } = await supabase
+    .from("profiles")
+    .select("user_id, display_name, nickname, avatar_url")
+    .in("user_id", commenterIds);
+
+  if (profilesError) throw profilesError;
+
+  const profileByUser = new Map<string, ArchiveCommentProfile>();
+  for (const p of profileRows || []) {
+    profileByUser.set(p.user_id, {
+      user_id: p.user_id,
+      display_name: p.display_name,
+      nickname: p.nickname ?? null,
+      avatar_url: p.avatar_url ?? null,
+    });
+  }
+
+  for (const c of commentRows) {
+    const enriched: ArchiveComment = {
+      id: c.id,
+      text: c.text,
+      item_index: c.item_index,
+      created_at: c.created_at,
+      user_id: c.user_id,
+      profile: profileByUser.get(c.user_id) ?? null,
+    };
+    const bucket = byPost.get(c.post_id) ?? [];
+    bucket.push(enriched);
+    byPost.set(c.post_id, bucket);
+  }
+
+  return byPost;
 }
 
 export function useArchiveMonths() {
@@ -90,9 +155,12 @@ export function useArchivePostsByMonth(monthKey: string | null) {
         .select("post_id, url, media_type")
         .in("post_id", postIds);
 
+      const commentsByPost = await fetchCommentsForPosts(postIds);
+
       return posts.map(p => ({
         ...p,
         media: (media || []).filter(m => m.post_id === p.id),
+        comments: commentsByPost.get(p.id) ?? [],
       })) as ArchivePost[];
     },
   });
@@ -110,7 +178,7 @@ export function useFriendArchive(userId: string) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      if (!posts || posts.length === 0) return { posts: [], totalCount: 0 };
+      if (!posts || posts.length === 0) return { posts: [] as ArchivePost[], totalCount: 0 };
 
       const postIds = posts.map(p => p.id);
       const { data: media } = await supabase
@@ -118,9 +186,12 @@ export function useFriendArchive(userId: string) {
         .select("post_id, url, media_type")
         .in("post_id", postIds);
 
-      const enriched = posts.map(p => ({
+      const commentsByPost = await fetchCommentsForPosts(postIds);
+
+      const enriched: ArchivePost[] = posts.map(p => ({
         ...p,
         media: (media || []).filter(m => m.post_id === p.id),
+        comments: commentsByPost.get(p.id) ?? [],
       }));
 
       return { posts: enriched, totalCount: posts.length };
